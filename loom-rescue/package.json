@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "check:app": "node --check src/app.js",
+    "verify": "npm test && npm run check:app"
   }
 }
