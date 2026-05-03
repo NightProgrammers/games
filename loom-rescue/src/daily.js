@@ -74,10 +74,11 @@ export function generateDailyLevel(seed = dailySeedFromDate()) {
   const bundles = pickBundles(bundleIds);
   const order = shuffle(bundleIds, random);
   const orderIndex = Object.fromEntries(order.map((bundleId, index) => [bundleId, index]));
+  const crossingCount = random() > 0.5 ? 4 : 3;
 
   const crossings = shuffle(Object.values(CROSSING_LIBRARY), random)
     .filter((crossing) => crossing.pair.every((bundleId) => bundleIds.includes(bundleId)))
-    .slice(0, 4)
+    .slice(0, crossingCount)
     .map((crossing, index) => {
       const [first, second] = crossing.pair;
       const over = orderIndex[first] < orderIndex[second] ? first : second;
@@ -92,7 +93,7 @@ export function generateDailyLevel(seed = dailySeedFromDate()) {
       };
     });
 
-  const pinTargets = shuffle(order.slice(1), random).slice(0, 3);
+  const pinTargets = shuffle(order.slice(2), random).slice(0, 2);
   const pins = pinTargets.map((bundleId, index) => {
     const earlier = order.slice(0, orderIndex[bundleId]);
     const requiredCount = Math.min(earlier.length, 1 + Math.floor(random() * Math.min(2, earlier.length)));
@@ -107,7 +108,7 @@ export function generateDailyLevel(seed = dailySeedFromDate()) {
   });
 
   const guides = shuffle(bundleIds, random)
-    .slice(0, 3)
+    .slice(0, 2)
     .map((bundleId, index) => ({
       ...clone(GUIDE_LIBRARY[bundleId]),
       id: `daily-guide-${index + 1}`
@@ -121,8 +122,8 @@ export function generateDailyLevel(seed = dailySeedFromDate()) {
     seed,
     title: `Daily Tangle • ${seed}`,
     number: null,
-    beat: "Daily boards keep the same rules but only allow two knots before failure.",
-    mechanics: ["2-knot fail meter", "Seeded template"],
+    beat: "Daily boards keep the same rules, but the foil stamp only gives you two knots and a seeded 8-step weave.",
+    mechanics: ["2-knot fail meter", "2 pins", "2 guide chains", "Seeded template"],
     board: BOARD,
     failLimit: 2,
     postcard,

@@ -213,6 +213,16 @@ export function evaluateBundle(level, state, bundleId, runtime = createRuntime(l
     };
   }
 
+  const badGuide = (runtime.guidesByBundle.get(bundleId) ?? []).find(
+    (guide) => guide.direction !== bundle.pullDirection
+  );
+  if (badGuide) {
+    return {
+      ok: false,
+      reason: `${bundle.name} fights the ${badGuide.name} guide.`
+    };
+  }
+
   const blockingCrossing = (runtime.crossingsByUnder.get(bundleId) ?? []).find(
     (crossing) => !isBundleRemoved(state, crossing.over)
   );
@@ -221,16 +231,6 @@ export function evaluateBundle(level, state, bundleId, runtime = createRuntime(l
     return {
       ok: false,
       reason: `${bundle.name} snags under ${blocker.name} at ${cellLabel(blockingCrossing.cell)}.`
-    };
-  }
-
-  const badGuide = (runtime.guidesByBundle.get(bundleId) ?? []).find(
-    (guide) => guide.direction !== bundle.pullDirection
-  );
-  if (badGuide) {
-    return {
-      ok: false,
-      reason: `${bundle.name} fights the ${badGuide.name} guide.`
     };
   }
 
@@ -325,6 +325,25 @@ function finalizeProgress(level, nextState) {
   return nextState;
 }
 
+function finalizeOutcome(level, state, runtime) {
+  const nextState = finalizeProgress(level, state);
+  if (nextState.completed) {
+    return nextState;
+  }
+
+  if (!collectLegalActions(level, nextState, runtime).length) {
+    return {
+      ...nextState,
+      failed: true,
+      completed: false,
+      hintAction: null,
+      message: "No legal pulls or exposed pins remain. The weave deadlocks."
+    };
+  }
+
+  return nextState;
+}
+
 export function applyAction(level, state, action, runtime = createRuntime(level)) {
   if (action.type === "pin") {
     const evaluation = evaluatePin(level, state, action.id, runtime);
@@ -344,7 +363,7 @@ export function applyAction(level, state, action, runtime = createRuntime(level)
       message: `${pin.name} lifts away.`,
       hintAction: null
     };
-    return finalizeProgress(level, nextState);
+    return finalizeOutcome(level, nextState, runtime);
   }
 
   const evaluation = evaluateBundle(level, state, action.id, runtime);
@@ -358,7 +377,6 @@ export function applyAction(level, state, action, runtime = createRuntime(level)
       knots,
       failed,
       completed: false,
-      history: [...state.history, snapshotState(state)],
       hintAction: null,
       message: failed
         ? `${evaluation.reason} Knot ${knots}/${level.failLimit}. The weave locks shut.`
@@ -366,13 +384,13 @@ export function applyAction(level, state, action, runtime = createRuntime(level)
     };
   }
 
-  const nextState = finalizeProgress(level, {
+  const nextState = finalizeOutcome(level, {
     ...state,
     removedBundles: [...state.removedBundles, action.id],
     history: [...state.history, snapshotState(state)],
     hintAction: null,
     message: `${bundle.name} slides free toward the ${bundle.pullDirection}.`
-  });
+  }, runtime);
 
   if (nextState.completed) {
     nextState.message = `${bundle.name} completes the postcard reveal.`;
@@ -451,6 +469,15 @@ export function validateLevel(level) {
     if (level.failLimit !== 2) {
       issues.push("Daily levels must use a 2-knot fail meter.");
     }
+    if (runtime.pins.length !== 2) {
+      issues.push("Daily levels should author exactly 2 pins.");
+    }
+    if (runtime.guides.length !== 2) {
+      issues.push("Daily levels should author exactly 2 guide chains.");
+    }
+    if (runtime.crossings.length < 3 || runtime.crossings.length > 4) {
+      issues.push("Daily levels should author 3 to 4 crossings.");
+    }
   } else if (level.failLimit !== 3) {
     issues.push("Standard FTUE levels must use a 3-knot fail meter.");
   }
@@ -525,6 +552,9 @@ export function validateLevel(level) {
   if (!solution.ok) {
     issues.push(solution.reason);
   }
+  if (level.kind === "daily" && solution.ok && (solution.sequence.length < 7 || solution.sequence.length > 9)) {
+    issues.push("Daily levels should resolve in 7 to 9 actions.");
+  }
 
   return {
     ok: issues.length === 0,
@@ -540,6 +570,13 @@ export function solveLevel(level, runtime = createRuntime(level)) {
   for (let step = 0; step < 40; step += 1) {
     if (state.completed) {
       return { ok: true, sequence };
+    }
+    if (state.failed) {
+      return {
+        ok: false,
+        sequence,
+        reason: state.message
+      };
     }
 
     const nextAction = collectLegalActions(level, state, runtime)[0];

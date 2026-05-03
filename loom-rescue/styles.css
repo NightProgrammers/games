@@ -124,6 +124,14 @@ p {
   color: var(--ink);
 }
 
+.album-card__sub,
+.modal-support,
+.info-foot {
+  margin: 8px 0 12px;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+
 .meter {
   width: 100%;
   height: 12px;
@@ -220,8 +228,18 @@ p {
   background: rgba(215, 115, 88, 0.14);
 }
 
+.rail-chip:disabled,
+.daily-rail input:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
 .rail-chip.is-cleared {
   box-shadow: inset 0 0 0 1px rgba(115, 148, 108, 0.34);
+}
+
+.rail-chip.is-locked {
+  background: rgba(243, 236, 225, 0.84);
 }
 
 .play-layout {
@@ -242,6 +260,15 @@ p {
   gap: 16px;
 }
 
+.board-card__heading {
+  display: grid;
+  gap: 12px;
+}
+
+.board-back {
+  width: fit-content;
+}
+
 .hud-block {
   min-width: 170px;
   display: grid;
@@ -255,6 +282,10 @@ p {
   font-size: 0.84rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.hud-meter {
+  min-width: 170px;
 }
 
 .board-frame {
@@ -367,6 +398,11 @@ p {
   fill: rgba(255, 251, 244, 0.92);
   stroke: rgba(97, 74, 52, 0.3);
   stroke-width: 2;
+}
+
+.exit-chip.is-hinted,
+.exit-arrow.is-hinted {
+  animation: pulse-hint 900ms ease-in-out infinite;
 }
 
 .exit-arrow,
@@ -596,6 +632,10 @@ p {
   margin-top: 18px;
 }
 
+.postcard-card {
+  max-width: 560px;
+}
+
 .modal-postcard {
   margin-top: 18px;
   aspect-ratio: 4 / 3;
@@ -619,10 +659,37 @@ p {
   letter-spacing: 0.08em;
 }
 
+.modal-postcard--full {
+  aspect-ratio: 5 / 4;
+}
+
 .stamp-line {
   margin-top: 14px;
   color: var(--brand-dark);
   font-weight: 700;
+}
+
+.next-pack-preview {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(255, 248, 238, 0.72);
+  border: 1px solid rgba(109, 83, 58, 0.12);
+  display: grid;
+  gap: 4px;
+}
+
+.next-pack-preview__label {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  color: var(--brand-dark);
+}
+
+.next-pack-preview strong,
+.next-pack-preview span {
+  color: var(--ink);
 }
 
 @keyframes rise-in {
@@ -634,6 +701,19 @@ p {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes pulse-hint {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.08);
+    opacity: 0.72;
   }
 }
 

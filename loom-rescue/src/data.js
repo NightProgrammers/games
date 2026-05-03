@@ -1,9 +1,33 @@
 export const BOARD = Object.freeze({ cols: 6, rows: 8 });
 export const STANDARD_FAIL_LIMIT = 3;
 export const MILESTONE_LEVELS = new Set([5, 10, 15]);
+export const POSTCARD_SETS = Object.freeze([
+  {
+    id: "coastal-morning",
+    title: "Coastal Morning",
+    accent: "#cf6f4c",
+    gradient: ["#f3dbc0", "#df8d67", "#9f533f"],
+    nextTitle: "Flower Shop Window"
+  },
+  {
+    id: "flower-shop-window",
+    title: "Flower Shop Window",
+    accent: "#8b7a4c",
+    gradient: ["#f7e7c9", "#c7ab71", "#7b9d7a"],
+    nextTitle: "Tea House Garden"
+  },
+  {
+    id: "tea-house-garden",
+    title: "Tea House Garden",
+    accent: "#6a7ea3",
+    gradient: ["#efe0cf", "#7f91b5", "#47647b"],
+    nextTitle: "Daily Foil Stamp"
+  }
+]);
 
 const pt = (x, y) => ({ x, y });
 const clone = (value) => JSON.parse(JSON.stringify(value));
+const POSTCARD_SET_MAP = Object.fromEntries(POSTCARD_SETS.map((set) => [set.id, set]));
 
 export const BUNDLE_LIBRARY = Object.freeze({
   A: {
@@ -130,9 +154,15 @@ const postcard = (title, caption, gradient, accent) => ({
   accent
 });
 
+const postcardForSet = (setId, caption) => {
+  const set = POSTCARD_SET_MAP[setId];
+  return postcard(set.title, caption, set.gradient, set.accent);
+};
+
 const createLevel = ({
   id,
   number,
+  packId,
   title,
   beat,
   mechanics,
@@ -145,6 +175,7 @@ const createLevel = ({
   id,
   kind: "ftue",
   number,
+  packId,
   title,
   beat,
   mechanics,
@@ -189,303 +220,265 @@ export const HANDCRAFTED_LEVELS = [
   createLevel({
     id: "ftue-01",
     number: 1,
-    title: "Morning Pull",
-    beat: "A loose bundle leaves the board in one clean pull.",
+    packId: "coastal-morning",
+    title: "First Pull",
+    beat: "Learn whole-bundle extraction with two loose exits and no blockers.",
     mechanics: ["Whole-bundle extraction"],
-    postcard: postcard(
-      "Window Light",
-      "Restore the first postcard by sliding the only loose thread free.",
-      ["#f3dbc0", "#df8d67", "#9f533f"],
-      "#cf6f4c"
-    ),
-    bundles: pickBundles(["E"])
-  }),
-  createLevel({
-    id: "ftue-02",
-    number: 2,
-    title: "Two Loose Ends",
-    beat: "Independent exits can be cleared in any order.",
-    mechanics: ["Two independent pulls"],
-    postcard: postcard(
-      "Tea Tray",
-      "There is no trick yet. Read the exits and clear both threads.",
-      ["#f7e7c9", "#c7ab71", "#7b9d7a"],
-      "#a57941"
+    postcard: postcardForSet(
+      "coastal-morning",
+      "Restore the first postcard by clearing two free threads from the outer ring."
     ),
     bundles: pickBundles(["E", "F"])
   }),
   createLevel({
+    id: "ftue-02",
+    number: 2,
+    packId: "coastal-morning",
+    title: "Over First",
+    beat: "A top bundle must leave before the lower crossing can move.",
+    mechanics: ["Two-layer crossing"],
+    postcard: postcardForSet(
+      "coastal-morning",
+      "A single crossing teaches that the visible top strand resolves before the lower strand."
+    ),
+    bundles: pickBundles(["A", "B", "E"]),
+    crossings: [makeCrossing("AB", "B", "A")]
+  }),
+  createLevel({
     id: "ftue-03",
     number: 3,
-    title: "First Overlap",
-    beat: "The thread on top must leave before the one underneath.",
-    mechanics: ["Two-layer crossing"],
-    postcard: postcard(
-      "Bridge Post",
-      "The crossing badge shows which bundle rides above the other.",
-      ["#f0e3cf", "#7597b6", "#35536e"],
-      "#567994"
+    packId: "coastal-morning",
+    title: "Read the Edge",
+    beat: "Mixed exit sides teach players to trace the assigned border, not the nearest edge.",
+    mechanics: ["Assigned exit vectors"],
+    postcard: postcardForSet(
+      "coastal-morning",
+      "Three bundles leave from different borders, so the clean read starts at the edge."
     ),
-    bundles: pickBundles(["A", "B"]),
-    crossings: [makeCrossing("AB", "B", "A")]
+    bundles: pickBundles(["B", "D", "E"])
   }),
   createLevel({
     id: "ftue-04",
     number: 4,
-    title: "Layer Ladder",
-    beat: "Crossing order can chain from one bundle into the next.",
-    mechanics: ["Crossing chains"],
-    postcard: postcard(
-      "Lantern Steps",
-      "Read the top layer first, then follow the newly loosened strand.",
-      ["#f4ddc9", "#b56f5b", "#54427b"],
-      "#8c5a64"
+    packId: "coastal-morning",
+    title: "First Pin",
+    beat: "An exposed pin must lift before the deeper bundle can leave.",
+    mechanics: ["Lock pins"],
+    postcard: postcardForSet(
+      "coastal-morning",
+      "Tap the exposed pin first, then finish the gentle pull sequence."
     ),
-    bundles: pickBundles(["A", "B", "D"]),
-    crossings: [makeCrossing("AB", "B", "A"), makeCrossing("AD", "A", "D")]
+    bundles: pickBundles(["B", "C", "E"]),
+    pins: [
+      makePin("C", {
+        id: "pin-c-first",
+        name: "First clasp",
+        blocks: ["C"],
+        requiresClear: ["E"]
+      })
+    ]
   }),
   createLevel({
     id: "ftue-05",
     number: 5,
-    title: "Pinned Bloom",
-    beat: "Some bundles stay locked until you lift the pin after a clear.",
-    mechanics: ["Lock pins"],
-    postcard: postcard(
-      "Pressed Flowers",
-      "Clear the loose cord, lift the pin, then pull the pinned thread.",
-      ["#f7e7d0", "#d97c82", "#6b9a64"],
-      "#bc6a73"
+    packId: "coastal-morning",
+    title: "Pin Then Pull Chain",
+    beat: "A pin and crossing interleave into the first postcard-set finish.",
+    mechanics: ["Pin and crossing chain"],
+    postcard: postcardForSet(
+      "coastal-morning",
+      "Clear the top layer, lift the clasp it was hiding, and stitch the first postcard set closed."
     ),
-    bundles: pickBundles(["B", "C"]),
+    bundles: pickBundles(["A", "B", "C", "E"]),
     pins: [
       makePin("C", {
-        id: "pin-c-bloom",
-        name: "Bloom pin",
+        id: "pin-c-chain",
+        name: "Chain clasp",
         blocks: ["C"],
+        requiresClear: ["A"]
+      })
+    ],
+    crossings: [makeCrossing("AB", "B", "A")]
+  }),
+  createLevel({
+    id: "ftue-06",
+    number: 6,
+    packId: "flower-shop-window",
+    title: "Arrow Direction",
+    beat: "Static guide arrows enter the slice as readable exit signage.",
+    mechanics: ["Static one-way guides"],
+    postcard: postcardForSet(
+      "flower-shop-window",
+      "The first guide board stays light: read the fixed arrow cue before committing a pull."
+    ),
+    bundles: pickBundles(["B", "C", "E", "F"]),
+    guides: pickGuides(["B"])
+  }),
+  createLevel({
+    id: "ftue-07",
+    number: 7,
+    packId: "flower-shop-window",
+    title: "Crossing + Guide",
+    beat: "A lower-layer path can still need guide read before it becomes actionable.",
+    mechanics: ["Guide on a lower-layer path"],
+    postcard: postcardForSet(
+      "flower-shop-window",
+      "A crossing and guide share the same read, keeping the blocker cluster local and legible."
+    ),
+    bundles: pickBundles(["A", "B", "C", "E"]),
+    guides: pickGuides(["A"]),
+    crossings: [makeCrossing("AB", "B", "A")]
+  }),
+  createLevel({
+    id: "ftue-08",
+    number: 8,
+    packId: "flower-shop-window",
+    title: "Covered Pin",
+    beat: "Two pins stage a clean sequence without letting the board turn noisy.",
+    mechanics: ["Two pins on layered routes"],
+    postcard: postcardForSet(
+      "flower-shop-window",
+      "The visible path is simple, but the second clasp only matters after the first branch clears."
+    ),
+    bundles: pickBundles(["A", "B", "C", "D", "E"]),
+    pins: [
+      makePin("C", {
+        id: "pin-c-covered",
+        name: "Covered clasp",
+        blocks: ["C"],
+        requiresClear: ["A"]
+      }),
+      makePin("D", {
+        id: "pin-d-covered",
+        name: "Lower rail pin",
+        blocks: ["D"],
         requiresClear: ["B"]
       })
     ]
   }),
   createLevel({
-    id: "ftue-06",
-    number: 6,
-    title: "Cross Then Pin",
-    beat: "A bundle can be hidden by a crossing and still hold a pin behind it.",
-    mechanics: ["Crossing into pin"],
-    postcard: postcard(
-      "Harbor Lamp",
-      "First untuck the top layer, then lift the pin guarding the garden weave.",
-      ["#f6e8d4", "#e19c52", "#497b7f"],
-      "#d98e3c"
-    ),
-    bundles: pickBundles(["A", "B", "C"]),
-    pins: [
-      makePin("C", {
-        id: "pin-c-harbor",
-        name: "Harbor pin",
-        blocks: ["C"],
-        requiresClear: ["A"]
-      })
-    ],
-    crossings: [makeCrossing("AB", "B", "A")]
-  }),
-  createLevel({
-    id: "ftue-07",
-    number: 7,
-    title: "Guide Intro",
-    beat: "Guides are static. They only show the legal pull direction.",
-    mechanics: ["Static one-way guides"],
-    postcard: postcard(
-      "Courier Hall",
-      "Guide plates do not rotate in this slice, so read them as fixed signage.",
-      ["#efe6d5", "#6c8da9", "#6e9270"],
-      "#547994"
-    ),
-    bundles: pickBundles(["B", "C", "E"]),
-    guides: pickGuides(["B", "E"]),
-    crossings: [makeCrossing("BE", "B", "E")]
-  }),
-  createLevel({
-    id: "ftue-08",
-    number: 8,
-    title: "Forked Thread",
-    beat: "One top bundle can unlock two different lanes.",
-    mechanics: ["Multi-branch crossing read"],
-    postcard: postcard(
-      "Garden Fork",
-      "After the harbor cord leaves, two different threads loosen at once.",
-      ["#f3e6d0", "#7f9a68", "#c29253"],
-      "#889f61"
-    ),
-    bundles: pickBundles(["A", "B", "C", "D"]),
-    crossings: [
-      makeCrossing("AB", "B", "A"),
-      makeCrossing("AC", "A", "C"),
-      makeCrossing("BD", "B", "D")
-    ]
-  }),
-  createLevel({
     id: "ftue-09",
     number: 9,
-    title: "Twin Pins",
-    beat: "Pins can stage a strict sequence even when crossings stay simple.",
-    mechanics: ["Multiple pin releases"],
-    postcard: postcard(
-      "Ribbon Shelf",
-      "Lift one pin to free the next bundle, then release the second lock.",
-      ["#f4e4d1", "#c16776", "#73947c"],
-      "#9d5662"
+    packId: "flower-shop-window",
+    title: "False Easy Exit",
+    beat: "Several bundles look equally loose, but tracing the full path matters more than color.",
+    mechanics: ["Mixed exit-side scan"],
+    postcard: postcardForSet(
+      "flower-shop-window",
+      "This board mirrors multiple edge reads so the player must scan before tugging."
     ),
-    bundles: pickBundles(["B", "C", "E"]),
-    pins: [
-      makePin("C", {
-        id: "pin-c-ribbon",
-        name: "Ribbon pin",
-        blocks: ["C"],
-        requiresClear: ["E"]
-      }),
-      makePin("B", {
-        id: "pin-b-ribbon",
-        name: "Shelf pin",
-        blocks: ["B"],
-        requiresClear: ["C"]
-      })
-    ]
+    bundles: pickBundles(["B", "C", "D", "E", "F"])
   }),
   createLevel({
     id: "ftue-10",
     number: 10,
-    title: "Stamp Weave",
-    beat: "Pins and crossings can interleave without custom level logic.",
-    mechanics: ["Pin plus crossing mesh"],
-    postcard: postcard(
-      "Ink Garden",
-      "Use the postmark loop to expose the pin before the deeper ribbon can leave.",
-      ["#efe0cf", "#8a6cb6", "#5b8f77"],
-      "#7057a2"
+    packId: "flower-shop-window",
+    title: "Mid-arc Mix",
+    beat: "Pins, guide signage, and a single crossing combine into the second postcard finish.",
+    mechanics: ["Two pins plus one guide cluster"],
+    postcard: postcardForSet(
+      "flower-shop-window",
+      "This is the mid-arc check: solve a local blocker cluster, then stamp the second postcard set."
     ),
-    bundles: pickBundles(["A", "C", "D", "E"]),
+    bundles: pickBundles(["A", "B", "C", "E", "F"]),
     pins: [
       makePin("A", {
-        id: "pin-a-ink",
-        name: "Ink pin",
+        id: "pin-a-midarc",
+        name: "Window pin",
         blocks: ["A"],
         requiresClear: ["E"]
-      })
-    ],
-    crossings: [makeCrossing("AE", "E", "A"), makeCrossing("CD", "C", "D")]
-  }),
-  createLevel({
-    id: "ftue-11",
-    number: 11,
-    title: "Quiet Knot",
-    beat: "Read two independent branches and decide which one to resolve first.",
-    mechanics: ["Parallel branches", "Crossing into pin"],
-    postcard: postcard(
-      "Quiet Alley",
-      "Either branch can start the postcard, but both must end in the right order.",
-      ["#f5e6d6", "#6687aa", "#cb8350"],
-      "#8e6a8a"
-    ),
-    bundles: pickBundles(["A", "B", "C", "D", "E"]),
-    pins: [
+      }),
       makePin("C", {
-        id: "pin-c-alley",
-        name: "Alley pin",
+        id: "pin-c-midarc",
+        name: "Stem clasp",
         blocks: ["C"],
         requiresClear: ["A"]
       })
     ],
-    crossings: [
-      makeCrossing("BE", "B", "E"),
-      makeCrossing("AB", "B", "A"),
-      makeCrossing("CD", "C", "D")
-    ]
+    guides: pickGuides(["B"]),
+    crossings: [makeCrossing("AB", "B", "A")]
+  }),
+  createLevel({
+    id: "ftue-11",
+    number: 11,
+    packId: "tea-house-garden",
+    title: "Double Crossing",
+    beat: "Two separated crossings ask the player to scan the nearest unresolved layer first.",
+    mechanics: ["Separated crossing reads"],
+    postcard: postcardForSet(
+      "tea-house-garden",
+      "The first garden board splits depth into two quiet branches instead of one dense knot."
+    ),
+    bundles: pickBundles(["A", "B", "C", "D", "F"]),
+    crossings: [makeCrossing("AB", "B", "A"), makeCrossing("CF", "C", "F")]
   }),
   createLevel({
     id: "ftue-12",
     number: 12,
-    title: "Guide Garden",
-    beat: "Guides help scan the correct exit before the weave gets dense.",
-    mechanics: ["Three guides", "Pin after branch resolve"],
-    postcard: postcard(
-      "Guide Garden",
-      "This board uses the full guide cluster cap, but the rules stay static.",
-      ["#f7ead7", "#7ca06b", "#b46d7c"],
-      "#6f9659"
+    packId: "tea-house-garden",
+    title: "Pressure Test",
+    beat: "The first full 6-bundle board makes the 3-knot budget feel relevant without becoming unreadable.",
+    mechanics: ["6-bundle pressure test"],
+    postcard: postcardForSet(
+      "tea-house-garden",
+      "This board expands to the full slice footprint while keeping at least one clean edge opener."
     ),
-    bundles: pickBundles(["A", "C", "D", "E", "F"]),
+    bundles: pickBundles(["A", "B", "C", "D", "E", "F"]),
     pins: [
-      makePin("F", {
-        id: "pin-f-garden",
-        name: "Garden clasp",
-        blocks: ["F"],
-        requiresClear: ["D"]
+      makePin("A", {
+        id: "pin-a-pressure",
+        name: "Pressure clasp",
+        blocks: ["A"],
+        requiresClear: ["E"]
       })
     ],
-    guides: pickGuides(["A", "C", "F"]),
     crossings: [
-      makeCrossing("AE", "E", "A"),
-      makeCrossing("AF", "A", "F"),
-      makeCrossing("CD", "C", "D")
+      makeCrossing("AB", "B", "A"),
+      makeCrossing("CD", "C", "D"),
+      makeCrossing("CF", "C", "F")
     ]
   }),
   createLevel({
     id: "ftue-13",
     number: 13,
-    title: "Tension Mesh",
-    beat: "Every release should clearly open space for the next one.",
-    mechanics: ["Dense crossing graph", "Late pin release"],
-    postcard: postcard(
-      "Tension Mesh",
-      "A late pin keeps the last ribbon from leaving too early.",
-      ["#f4e5d4", "#d79647", "#5567bb"],
-      "#c27f34"
+    packId: "tea-house-garden",
+    title: "Soft Braid",
+    beat: "Three crossings create density, but two opening routes stay visible at the edge.",
+    mechanics: ["Multiple valid openings"],
+    postcard: postcardForSet(
+      "tea-house-garden",
+      "A softer braid lets two different starts succeed, proving the slice is not single-path only."
     ),
-    bundles: pickBundles(["A", "B", "C", "D", "F"]),
-    pins: [
-      makePin("F", {
-        id: "pin-f-mesh",
-        name: "Mesh clasp",
-        blocks: ["F"],
-        requiresClear: ["D"]
-      })
-    ],
-    crossings: [
-      makeCrossing("AB", "B", "A"),
-      makeCrossing("AC", "A", "C"),
-      makeCrossing("BD", "B", "D"),
-      makeCrossing("CF", "C", "F")
-    ]
+    bundles: pickBundles(["A", "B", "C", "D", "E", "F"]),
+    crossings: [makeCrossing("AB", "B", "A"), makeCrossing("BE", "B", "E"), makeCrossing("CF", "C", "F")]
   }),
   createLevel({
     id: "ftue-14",
     number: 14,
-    title: "Pinwheel Lattice",
-    beat: "The board reaches slice density while staying readable from data alone.",
-    mechanics: ["6 bundles", "2 pins", "3 guides", "4 crossings"],
-    postcard: postcard(
-      "Pinwheel Lattice",
-      "Resolve two branches, then cash both pins at the right moment.",
-      ["#efe1d0", "#7293a6", "#cc705c"],
-      "#5f879d"
+    packId: "tea-house-garden",
+    title: "Color Trap",
+    beat: "Close visual neighbors make the depth halos and exit arrows do the real readability work.",
+    mechanics: ["Close-palette readability test"],
+    postcard: postcardForSet(
+      "tea-house-garden",
+      "Readability gets stress-tested here: similar tones share the board but not the same blockers."
     ),
     bundles: pickBundles(["A", "B", "C", "D", "E", "F"]),
     pins: [
       makePin("A", {
-        id: "pin-a-lattice",
-        name: "Lattice pin",
+        id: "pin-a-color",
+        name: "Trap pin",
         blocks: ["A"],
         requiresClear: ["E"]
       }),
       makePin("F", {
-        id: "pin-f-lattice",
-        name: "Pinwheel clasp",
+        id: "pin-f-color",
+        name: "Shade clasp",
         blocks: ["F"],
         requiresClear: ["D"]
       })
     ],
-    guides: pickGuides(["B", "C", "E"]),
+    guides: pickGuides(["B", "C"]),
     crossings: [
       makeCrossing("BE", "B", "E"),
       makeCrossing("AB", "B", "A"),
@@ -496,14 +489,13 @@ export const HANDCRAFTED_LEVELS = [
   createLevel({
     id: "ftue-15",
     number: 15,
-    title: "Festival Postcard",
-    beat: "The finale uses the full slice cap: 6 bundles, 3 pins, 3 guides, 4 crossings.",
+    packId: "tea-house-garden",
+    title: "Slice Finale",
+    beat: "The finale hits the slice cap with 6 bundles, 3 pins, 2 guide chains, and 4 crossings.",
     mechanics: ["Final FTUE exam"],
-    postcard: postcard(
-      "Festival Lanterns",
-      "The final postcard asks you to read crossings, pins, and guides together.",
-      ["#f5e6d3", "#d57959", "#556fc7"],
-      "#c8644a"
+    postcard: postcardForSet(
+      "tea-house-garden",
+      "Every slice rule lands together here, closing the third postcard set and unlocking the daily foil stamp."
     ),
     bundles: pickBundles(["A", "B", "C", "D", "E", "F"]),
     pins: [
@@ -526,7 +518,7 @@ export const HANDCRAFTED_LEVELS = [
         requiresClear: ["F"]
       })
     ],
-    guides: pickGuides(["A", "B", "C"]),
+    guides: pickGuides(["A", "B"]),
     crossings: [
       makeCrossing("BE", "B", "E"),
       makeCrossing("AB", "B", "A"),

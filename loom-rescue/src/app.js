@@ -1,8 +1,7 @@
 import { dailySeedFromDate, generateDailyLevel } from "./daily.js";
-import { HANDCRAFTED_LEVELS, MILESTONE_LEVELS } from "./data.js";
+import { HANDCRAFTED_LEVELS, MILESTONE_LEVELS, POSTCARD_SETS } from "./data.js";
 import {
   applyAction,
-  cellLabel,
   collectLegalActions,
   createInitialState,
   createRuntime,
@@ -55,6 +54,61 @@ function saveProgress() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(appState.progress));
 }
 
+function isDailyUnlocked() {
+  return appState.progress.clearedFtue.includes("ftue-15");
+}
+
+function getPackForLevel(level = appState.level) {
+  if (!level || level.kind === "daily") {
+    return null;
+  }
+  return POSTCARD_SETS.find((pack) => pack.id === level.packId) ?? null;
+}
+
+function getNextPack(level = appState.level) {
+  const pack = getPackForLevel(level);
+  if (!pack) {
+    return null;
+  }
+  const index = POSTCARD_SETS.findIndex((entry) => entry.id === pack.id);
+  return POSTCARD_SETS[index + 1] ?? null;
+}
+
+function getCompletedPackCount() {
+  return [...MILESTONE_LEVELS].filter((levelNumber) =>
+    appState.progress.stamps.includes(`level:${levelNumber}`)
+  ).length;
+}
+
+function getPackProgressPercent(level = appState.level, puzzle = appState.puzzle) {
+  if (!level) {
+    return 0;
+  }
+
+  if (level.kind === "daily") {
+    return appState.progress.dailySeeds.includes(level.seed) ? 100 : 0;
+  }
+
+  const packStart = Math.floor((level.number - 1) / 5) * 5 + 1;
+  const packEnd = packStart + 4;
+  const packLevels = HANDCRAFTED_LEVELS.filter(
+    (entry) => entry.number >= packStart && entry.number <= packEnd
+  );
+  const clearedCount = packLevels.filter((entry) =>
+    appState.progress.clearedFtue.includes(entry.id)
+  ).length;
+
+  if (isLevelCleared(level)) {
+    return Math.min(100, clearedCount * 20);
+  }
+
+  const currentFill = getRevealRatio(level, puzzle) * 20;
+  const clearedBeforeCurrent = packLevels.filter(
+    (entry) => entry.id !== level.id && appState.progress.clearedFtue.includes(entry.id)
+  ).length;
+  return Math.min(100, clearedBeforeCurrent * 20 + currentFill);
+}
+
 function stampKeyFor(level) {
   if (level.kind === "daily") {
     return `daily:${level.seed}`;
@@ -95,11 +149,13 @@ function loadLevel({
   dailySeed = appState.dailySeed,
   showStart = true
 } = {}) {
-  appState.mode = mode;
-  appState.levelIndex = levelIndex;
+  const dailyMode = mode === "daily" && isDailyUnlocked();
+
+  appState.mode = dailyMode ? "daily" : "ftue";
+  appState.levelIndex = dailyMode ? levelIndex : Math.min(levelIndex, HANDCRAFTED_LEVELS.length - 1);
   appState.dailySeed = dailySeed;
   appState.level =
-    mode === "daily" ? generateDailyLevel(dailySeed) : HANDCRAFTED_LEVELS[levelIndex];
+    dailyMode ? generateDailyLevel(dailySeed) : HANDCRAFTED_LEVELS[appState.levelIndex];
   appState.runtime = createRuntime(appState.level);
   appState.puzzle = createInitialState(appState.level);
   appState.validation = validateLevel(appState.level);
@@ -141,6 +197,9 @@ function handlePin(pinId) {
     { type: "pin", id: pinId },
     appState.runtime
   );
+  if (appState.puzzle.failed) {
+    appState.modal = "fail";
+  }
   render();
 }
 
@@ -273,8 +332,8 @@ function renderBoardSvg() {
           <path class="thread-shadow" d="${path}"></path>
           <path class="thread-main" d="${path}" stroke="${bundle.color}"></path>
           <path class="thread-hit" d="${path}"></path>
-          <circle class="exit-chip" cx="${start.x}" cy="${start.y}" r="18"></circle>
-          <text class="exit-arrow" x="${start.x}" y="${start.y + 6}" text-anchor="middle">${arrowFor(
+          <circle class="exit-chip ${isHint ? "is-hinted" : ""}" cx="${start.x}" cy="${start.y}" r="18"></circle>
+          <text class="exit-arrow ${isHint ? "is-hinted" : ""}" x="${start.x}" y="${start.y + 6}" text-anchor="middle">${arrowFor(
             bundle.pullDirection
           )}</text>
           <text class="bundle-tag" x="${end.x + 14}" y="${end.y - 10}">${bundle.id}</text>
@@ -354,6 +413,10 @@ function renderModal() {
     return "";
   }
 
+  const pack = getPackForLevel();
+  const nextPack = getNextPack();
+  const packProgress = Math.round(getPackProgressPercent());
+
   if (appState.modal === "start") {
     return `
       <div class="modal-backdrop">
@@ -361,10 +424,15 @@ function renderModal() {
           <p class="modal-kicker">${appState.level.kind === "daily" ? "Daily Challenge" : `Level ${appState.level.number}`}</p>
           <h2>${appState.level.title}</h2>
           <p>${appState.level.beat}</p>
+          <p class="modal-support">${
+            appState.level.kind === "daily"
+              ? `Foil stamp board • Seed ${appState.level.seed} • 2-knot limit`
+              : `${pack?.title ?? "Postcard pack"} • ${packProgress}% stitched • ${appState.level.failLimit}-knot meter`
+          }</p>
           <ul class="modal-list">
             ${appState.level.mechanics.map((mechanic) => `<li>${mechanic}</li>`).join("")}
           </ul>
-          <button class="primary-button" data-action="start-level">Begin Weave</button>
+          <button class="primary-button" data-action="start-level">Play</button>
         </section>
       </div>
     `;
@@ -378,8 +446,43 @@ function renderModal() {
           <h2>The loom locked before the postcard cleared.</h2>
           <p>${appState.puzzle.message}</p>
           <div class="modal-actions">
-            <button class="primary-button" data-action="restart-level">Restart</button>
-            <button class="ghost-button" data-action="undo">Undo Last Action</button>
+            <button class="primary-button" data-action="retry-level">Retry</button>
+            <button class="ghost-button" data-action="fail-hint">Hint</button>
+            <button class="ghost-button" data-action="quit-level">Quit to Packs</button>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  if (appState.modal === "postcard") {
+    return `
+      <div class="modal-backdrop">
+        <section class="modal-card postcard-card">
+          <p class="modal-kicker">${appState.level.kind === "daily" ? "Foil Stamp" : "Postcard Reveal"}</p>
+          <h2>${appState.level.postcard.title}</h2>
+          <p>${appState.level.postcard.caption}</p>
+          <div class="modal-postcard modal-postcard--full" style="--tone-a:${appState.level.postcard.gradient[0]}; --tone-b:${appState.level.postcard.gradient[1]}; --tone-c:${appState.level.postcard.gradient[2]};">
+            <span>${appState.level.kind === "daily" ? "DAILY" : `${pack?.title ?? "FTUE"}`}</span>
+          </div>
+          ${
+            appState.level.kind === "ftue" && MILESTONE_LEVELS.has(appState.level.number)
+              ? `<div class="next-pack-preview">
+                   <p class="next-pack-preview__label">Next Pack Preview</p>
+                   <strong>${nextPack?.title ?? "Daily Foil Stamp"}</strong>
+                   <span>${nextPack ? `Unlocked after ${pack?.title}.` : "Daily challenge now available."}</span>
+                 </div>`
+              : ""
+          }
+          <div class="modal-actions">
+            <button class="primary-button" data-action="next-level">${
+              appState.mode === "ftue" && appState.levelIndex < HANDCRAFTED_LEVELS.length - 1
+                ? "Next Level"
+                : appState.mode === "daily"
+                  ? "Replay Daily"
+                  : "Open Daily"
+            }</button>
+            <button class="ghost-button" data-action="close-postcard">Back</button>
           </div>
         </section>
       </div>
@@ -388,7 +491,7 @@ function renderModal() {
 
   const stampKey = stampKeyFor(appState.level);
   const stampLine = stampKey
-    ? `<p class="stamp-line">${currentStampEarned() ? "Stamp added to album." : "Stamp ready."}</p>`
+    ? `<p class="stamp-line">${currentStampEarned() ? (appState.level.kind === "daily" ? "Foil stamp added to album." : "Stamp added to album.") : "Stamp ready."}</p>`
     : "";
 
   return `
@@ -405,9 +508,11 @@ function renderModal() {
           <button class="primary-button" data-action="next-level">${
             appState.mode === "ftue" && appState.levelIndex < HANDCRAFTED_LEVELS.length - 1
               ? "Next Level"
-              : "Open Daily"
+              : appState.mode === "daily"
+                ? "Replay Daily"
+                : "Open Daily"
           }</button>
-          <button class="ghost-button" data-action="restart-level">Replay</button>
+          <button class="ghost-button" data-action="view-postcard">View Postcard</button>
         </div>
       </section>
     </div>
@@ -416,10 +521,11 @@ function renderModal() {
 
 function render() {
   const revealPercent = Math.round(getRevealRatio(appState.level, appState.puzzle) * 100);
-  const activeLevelCount =
-    appState.progress.clearedFtue.length +
-    (appState.progress.dailySeeds.includes(appState.dailySeed) ? 1 : 0);
+  const completedPacks = getCompletedPackCount();
   const legalActions = collectLegalActions(appState.level, appState.puzzle, appState.runtime);
+  const currentPack = getPackForLevel();
+  const packProgress = Math.round(getPackProgressPercent());
+  const dailyUnlocked = isDailyUnlocked();
 
   root.innerHTML = `
     <div class="shell">
@@ -433,9 +539,10 @@ function render() {
         </div>
         <section class="album-card">
           <p class="album-card__label">Album Progress</p>
-          <p class="album-card__value">${activeLevelCount}/16 postcards</p>
+          <p class="album-card__value">${completedPacks}/3 postcard sets</p>
+          <p class="album-card__sub">${appState.progress.clearedFtue.length}/15 level repairs complete</p>
           <div class="meter">
-            <span style="width:${(activeLevelCount / 16) * 100}%"></span>
+            <span style="width:${(appState.progress.clearedFtue.length / 15) * 100}%"></span>
           </div>
           <div class="stamp-grid">
             <span class="stamp ${appState.progress.stamps.includes("level:5") ? "is-earned" : ""}">L5</span>
@@ -463,21 +570,30 @@ function render() {
         <div class="daily-rail">
           <label>
             <span>Daily Seed</span>
-            <input type="date" value="${appState.dailySeed}" data-seed-input />
+            <input type="date" value="${appState.dailySeed}" data-seed-input ${dailyUnlocked ? "" : "disabled"} />
           </label>
-          <button class="rail-chip ${appState.mode === "daily" ? "is-active" : ""}" data-action="select-daily">Daily</button>
+          <button class="rail-chip ${appState.mode === "daily" ? "is-active" : ""} ${dailyUnlocked ? "" : "is-locked"}" data-action="select-daily" ${dailyUnlocked ? "" : "disabled"}>
+            ${dailyUnlocked ? "Daily" : "Daily Locked"}
+          </button>
         </div>
       </section>
 
       <main class="play-layout">
         <section class="board-card">
           <div class="board-card__top">
-            <div>
+            <div class="board-card__heading">
+              <button class="ghost-button board-back" data-action="quit-level">Back</button>
+              <div>
               <p class="board-card__kicker">${appState.level.kind === "daily" ? "Daily Challenge" : `Level ${appState.level.number}`}</p>
               <h2>${appState.level.title}</h2>
               <p>${appState.level.postcard.caption}</p>
+              </div>
             </div>
             <div class="hud-block">
+              <span class="hud-label">${appState.level.kind === "daily" ? "Foil Stamp" : currentPack?.title ?? "Postcard Pack"}</span>
+              <div class="meter hud-meter">
+                <span style="width:${appState.level.kind === "daily" ? revealPercent : packProgress}%"></span>
+              </div>
               <span class="hud-label">Knots</span>
               <div class="knot-meter">${renderKnotMeter()}</div>
               <span class="hud-label">Reveal ${revealPercent}%</span>
@@ -509,11 +625,16 @@ function render() {
 
           <section class="info-card">
             <p class="info-card__label">Postcard Fill</p>
-            <h3>${appState.level.postcard.title}</h3>
+            <h3>${appState.level.kind === "daily" ? "Daily Foil Stamp" : currentPack?.title ?? appState.level.postcard.title}</h3>
             <p>${appState.level.beat}</p>
             <div class="meter">
-              <span style="width:${revealPercent}%"></span>
+              <span style="width:${appState.level.kind === "daily" ? revealPercent : packProgress}%"></span>
             </div>
+            <p class="info-foot">${
+              appState.level.kind === "daily"
+                ? `Seed ${appState.level.seed} • first clear awards a foil stamp`
+                : `${packProgress}% of the current 5-level postcard set is stitched`
+            }</p>
           </section>
 
           <section class="info-card">
@@ -534,7 +655,7 @@ function render() {
             <ul class="note-list">
               <li>Dense boards stay readable by offsetting route render lanes, but a production art pass should strengthen true over/under depth cues.</li>
               <li>The built-in validator is enough for this slice because pins and crossings only remove blockers; if rules become dynamic, replace it with a deeper solver.</li>
-              <li>QA focus: invalid pull copy, daily 2-knot tuning, and whether the portrait layout stays legible on narrow screens.</li>
+              <li>QA focus: invalid pull copy, deadlock fail messaging, daily 2-knot tuning, and whether the portrait layout stays legible on narrow screens.</li>
             </ul>
           </section>
         </aside>
@@ -557,7 +678,9 @@ root.addEventListener("click", (event) => {
   }
 
   if (action === "select-daily") {
-    loadLevel({ mode: "daily", dailySeed: appState.dailySeed, showStart: true });
+    if (isDailyUnlocked()) {
+      loadLevel({ mode: "daily", dailySeed: appState.dailySeed, showStart: true });
+    }
     return;
   }
 
@@ -606,6 +729,45 @@ root.addEventListener("click", (event) => {
     return;
   }
 
+  if (action === "retry-level") {
+    appState.puzzle = restartLevel(appState.level);
+    appState.modal = null;
+    render();
+    return;
+  }
+
+  if (action === "fail-hint") {
+    appState.puzzle = restartLevel(appState.level);
+    const hint = findHint(appState.level, appState.puzzle, appState.runtime);
+    appState.puzzle = {
+      ...appState.puzzle,
+      hintAction: hint.action,
+      message: hint.message
+    };
+    appState.modal = null;
+    render();
+    return;
+  }
+
+  if (action === "quit-level") {
+    appState.puzzle = restartLevel(appState.level);
+    appState.modal = "start";
+    render();
+    return;
+  }
+
+  if (action === "view-postcard") {
+    appState.modal = "postcard";
+    render();
+    return;
+  }
+
+  if (action === "close-postcard") {
+    appState.modal = "win";
+    render();
+    return;
+  }
+
   if (action === "next-level") {
     openNextLevel();
   }
@@ -619,7 +781,7 @@ root.addEventListener("change", (event) => {
 
   if (target.matches("[data-seed-input]") && target.value) {
     appState.dailySeed = target.value;
-    if (appState.mode === "daily") {
+    if (appState.mode === "daily" && isDailyUnlocked()) {
       loadLevel({ mode: "daily", dailySeed: target.value, showStart: true });
     } else {
       render();
