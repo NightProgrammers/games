@@ -18,6 +18,18 @@ npm test
 npm run verify
 ```
 
+## Deployment
+
+- Pull requests that change `sticker-studio/**` or `.github/workflows/sticker-studio-preview.yml` publish a preview build to `https://<owner>.github.io/<repo>/previews/sticker-studio/pr-<number>/`.
+- Pushes to `main` that change the same paths publish the stable build to `https://<owner>.github.io/<repo>/sticker-studio/`.
+- Both deploy jobs verify the slice first with `npm run verify`.
+
+## Rollback And First Checks
+
+- Preview cleanup is automatic when the pull request closes; the workflow removes `previews/sticker-studio/pr-<number>/` from `gh-pages`.
+- Stable rollback is a normal git revert on `main`; the next stable deploy republishes the reverted `sticker-studio/` contents to `gh-pages`.
+- First post-deploy QA should cover a narrow-phone viewport pass, daily unlock after level `6`, persistence across reloads, and the UTC date rollover for the daily page.
+
 ## What Is Included
 
 - Data-driven ordered sticker-sheet gameplay with tray sheets, active partial sheets, binder clips, undo, hint, restart, fail, win, and daily-page entry
