@@ -63,11 +63,12 @@ jobs:
         with:
           script: |
             const marker = "<!-- sticker-studio-preview -->";
+            const headSha = context.payload.pull_request.head.sha.slice(0, 7);
             const body = `${marker}
             Sticker Studio preview deployed.
 
             URL: ${process.env.PREVIEW_URL}
-            Commit: ${context.sha.slice(0, 7)}
+            Commit: ${headSha}
             Path: \`${process.env.PREVIEW_DIR}/\`
 
             If this is the first deployment, enable GitHub Pages once in repository settings and point it at the \`gh-pages\` branch.`;
